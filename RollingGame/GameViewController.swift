@@ -11,10 +11,14 @@ import CoreMotion
 
 class GameViewController: UIViewController {
     
-    var myMotionManager: CMMotionManager!
+    var motionManager: CMMotionManager!
     var imageView: UIImageView!
     var speedX: Double = 0.0
     var speedY: Double = 0.0
+    
+    @IBOutlet var fieldView: UIView!
+    @IBOutlet var statusLabel: UILabel!
+    @IBOutlet var stopBt: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,52 +26,73 @@ class GameViewController: UIViewController {
         // Do any additional setup after loading the view.
        
         var image = UIImage(named: "mizubuu2")!
-        imageView = UIImageView(frame: CGRect(x: self.view.center.x, y: self.view.center.y, width: 40, height: 35))
+        imageView = UIImageView(frame: CGRect(x: self.fieldView.center.x, y: self.fieldView.center.y, width: 40, height: 35))
         imageView.image = image
         
         self.view.addSubview(imageView)
         
         // MotionManagerを生成.
-        myMotionManager = CMMotionManager()
+        motionManager = CMMotionManager()
         
         // 更新周期を設定.
-        myMotionManager.accelerometerUpdateInterval = 0.02
+        motionManager.accelerometerUpdateInterval = 0.02
         
+        self.startMotionManager()
+        
+    }
+    
+    func startMotionManager() {
         // 加速度の取得を開始.
-        myMotionManager.startAccelerometerUpdatesToQueue(NSOperationQueue.mainQueue(), withHandler: {(accelerometerData:CMAccelerometerData!, error:NSError!) -> Void in
+        motionManager.startAccelerometerUpdatesToQueue(NSOperationQueue.mainQueue(), withHandler: {(accelerometerData:CMAccelerometerData!, error:NSError!) -> Void in
             self.speedX += accelerometerData.acceleration.x
             self.speedY += accelerometerData.acceleration.y
             
             var posX = self.imageView.center.x + CGFloat(self.speedX)
             var posY = self.imageView.center.y - CGFloat(self.speedY)
-            if (posX < 0.0) {
-                posX = 0.0;
-                
-                self.speedX *= -0.4;
-            } else if (posX > self.view.bounds.size.width) {
-                posX = self.view.bounds.size.width;
-                
-                self.speedX *= -0.4;
-            }
-            if (posY < 0.0) {
-                posY = 0.0;
-                
-                self.speedY *= -0.4;
-            } else if (posY > self.view.bounds.size.height) {
-                posY = self.view.bounds.size.height;
-                
-                self.speedY *= -0.4;
-            }
+            
             self.imageView.center = CGPointMake(posX, posY);
+            self.checkGameOver()
         })
-        
-
-        
+    }
+    
+    func checkGameOver() {
+        if !CGRectContainsPoint(fieldView.frame, imageView.center) {
+            statusLabel.text = "GameOver"
+            if (motionManager.accelerometerActive) {
+                motionManager.stopAccelerometerUpdates()
+            }
+            self.stopBt.enabled = false
+        }
     }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    @IBAction func stop() {
+        if (motionManager.accelerometerActive) {
+            statusLabel.text = "Stop"
+            motionManager.stopAccelerometerUpdates()
+            stopBt.setTitle("Start", forState: .Normal)
+        } else {
+            statusLabel.text = ""
+            self.startMotionManager()
+            stopBt.setTitle("Stop", forState: .Normal)
+        }
+    }
+    
+    @IBAction func retry() {
+        //GameOverを消す
+        statusLabel.text = ""
+        imageView.frame.origin = self.fieldView.center
+        self.speedX = 0.0
+        self.speedY = 0.0
+        //加速度センサが停止してたらstartさせる
+        if !motionManager.accelerometerActive {
+            self.startMotionManager()
+        }
+        self.stopBt.enabled = true
     }
     
     
